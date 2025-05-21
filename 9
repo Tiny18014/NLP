@@ -1,0 +1,77 @@
+!pip install --upgrade numpy tensorflow matplotlib
+import tensorflow as tf
+from tensorflow.keras import layers, losses, Model, Input
+import numpy as np, matplotlib.pyplot as plt
+
+# Encoder
+def get_encoder(latent_dim):
+    inp = Input((28, 28, 1))
+    x = layers.Flatten()(inp)
+    x = layers.Dense(400, activation="relu")(x)
+    z_mean = layers.Dense(latent_dim)(x)
+    z_log_var = layers.Dense(latent_dim)(x)
+
+    def sample(args):
+        m, v = args
+        eps = tf.random.normal(tf.shape(m))
+        return m + tf.exp(0.5 * v) * eps
+
+    z = layers.Lambda(sample)([z_mean, z_log_var])
+    return Model(inp, [z_mean, z_log_var, z])
+
+# Decoder
+def get_decoder(latent_dim):
+    inp = Input((latent_dim,))
+    x = layers.Dense(400, activation="relu")(inp)
+    x = layers.Dense(28*28, activation="sigmoid")(x)
+    out = layers.Reshape((28, 28, 1))(x)
+    return Model(inp, out)
+
+# VAE Model
+class VAE(Model):
+    def __init__(self, enc, dec):
+        super().__init__()
+        self.enc, self.dec = enc, dec
+
+    def call(self, x):
+        m, v, z = self.enc(x)
+        return self.dec(z), m, v
+
+# Loss
+def vae_loss(x, x_rec, m, v):
+    rec = tf.reduce_mean(losses.binary_crossentropy(x, x_rec)) * 784
+    kl = -0.5 * tf.reduce_mean(1 + v - tf.square(m) - tf.exp(v))
+    return rec + kl
+
+# Data
+(x_train, _), _ = tf.keras.datasets.mnist.load_data()
+x_train = x_train.astype("float32") / 255.
+x_train = np.expand_dims(x_train, -1)
+ds = tf.data.Dataset.from_tensor_slices(x_train).shuffle(60000).batch(128)
+
+# Train
+enc, dec = get_encoder(20), get_decoder(20)
+vae, opt = VAE(enc, dec), tf.keras.optimizers.Adam()
+
+@tf.function
+def train_step(x):
+    with tf.GradientTape() as tape:
+        x_rec, m, v = vae(x)
+        loss = vae_loss(x, x_rec, m, v)
+    grads = tape.gradient(loss, vae.trainable_variables)
+    opt.apply_gradients(zip(grads, vae.trainable_variables))
+    return loss
+
+for e in range(10):
+    loss = sum(train_step(x) for x in ds) / len(ds)
+    print(f"Epoch {e+1}, Loss: {loss:.4f}")
+
+# Generate
+z = np.random.normal(size=(16, 20))
+imgs = dec.predict(z)
+
+fig, ax = plt.subplots(4, 4, figsize=(5,5))
+for i, a in enumerate(ax.flat):
+    a.imshow(imgs[i].squeeze(), cmap='gray')
+    a.axis('off')
+plt.show()
