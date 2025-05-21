@@ -1,0 +1,58 @@
+import math
+from collections import Counter
+from nltk.tokenize import word_tokenize
+import nltk
+
+
+nltk.download('punkt')
+
+docs = [
+    "This movie was fantastic and I loved every minute of it",
+    "The acting was terrible and the plot made no sense",
+    "Great special effects but the story was predictable",
+    "I fell asleep during this boring movie",
+    "The soundtrack was amazing and the cinematography stunning"
+]
+
+
+tokenized = [word_tokenize(doc.lower()) for doc in docs]
+tf_scores = []
+
+for doc in tokenized:
+    counts = Counter(doc)
+    doc_len = len(doc)
+    tf_scores.append({word: count/doc_len for word, count in counts.items()})
+
+df_scores = {}
+doc_count = len(docs)
+
+for doc in tokenized:
+    for word in set(doc):
+        df_scores[word] = df_scores.get(word, 0) + 1
+
+idf_scores = {word: math.log(doc_count/freq) for word, freq in df_scores.items()}
+
+
+tfidf_scores = []
+for tf in tf_scores:
+    tfidf_scores.append({word: tf_val * idf_scores[word] for word, tf_val in tf.items()})
+
+
+for i, tfidf in enumerate(tfidf_scores):
+    print(f"\nDocument {i+1} TF-IDF:")
+  
+    for word, score in sorted(tfidf.items(), key=lambda x: x[1], reverse=True)[:5]:
+        print(f"  {word}: {score:.4f}")
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(docs)
+features = vectorizer.get_feature_names_out()
+
+print("\nScikit-learn TF-IDF:")
+for i, doc in enumerate(X.toarray()):
+    print(f"\nDocument {i+1} top terms:")
+    top_indices = doc.argsort()[-5:][::-1]
+    for idx in top_indices:
+        if doc[idx] > 0:
+            print(f"  {features[idx]}: {doc[idx]:.4f}")
