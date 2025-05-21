@@ -1,0 +1,36 @@
+
+!pip install gensim scipy numpy==1.24.4
+
+from gensim.downloader import load
+from scipy.spatial.distance import cosine
+
+print("Loading model...")
+model = load('glove-wiki-gigaword-50') 
+
+def sim(w1, w2):
+    if w1 in model and w2 in model:
+        return 1 - cosine(model[w1], model[w2])
+    return "Word(s) not in vocabulary"
+
+# Test pairs
+pairs = [
+    ("king", "queen"),
+    ("king", "car"),
+    ("cat", "dog"),
+    ("sun", "moon"),
+    ("apple", "banana")
+]
+
+print("\nWord Pair Similarities:")
+for w1, w2 in pairs:
+    print(f"{w1} - {w2}: {sim(w1, w2):.4f}")
+
+word = "computer"
+n = 10
+
+print(f"\nTop {n} words similar to '{word}':")
+if word in model:
+    for similar, score in model.most_similar(word, topn=n):
+        print(f"{similar}: {score:.4f}")
+else:
+    print(f"'{word}' not found in vocabulary")
