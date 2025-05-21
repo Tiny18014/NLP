@@ -1,0 +1,45 @@
+import requests
+import re
+import nltk
+from nltk.util import ngrams
+from collections import Counter
+
+
+nltk.download('punkt_tab')
+
+
+sample = "This is an example corpus to find ngrams from text"
+words = sample.split()
+
+uni = words
+bi = list(ngrams(words, 2))
+tri = list(ngrams(words, 3))
+
+print("Unigrams:", uni)
+print("Bigrams:", bi[:3]) 
+print("Trigrams:", list(ngrams(words, 3))[:3])
+
+url = "https://www.gutenberg.org/files/1342/1342-0.txt"
+text = requests.get(url).text.lower()
+
+tokens = nltk.word_tokenize(text)
+clean_tokens = [re.sub(r'[^\w\s]', '', t) for t in tokens if t and not t.isdigit() and re.sub(r'[^\w\s]', '', t)]
+
+uni_count = Counter(clean_tokens)
+bi_count = Counter(ngrams(clean_tokens, 2))
+tri_count = Counter(ngrams(clean_tokens, 3))
+
+print(f"\nStats: {len(clean_tokens)} tokens, {len(uni_count)} unique unigrams")
+print(f"{len(bi_count)} unique bigrams, {len(tri_count)} unique trigrams")
+
+print("\nTop 10 Unigrams:")
+for item, count in uni_count.most_common(10):
+    print(f"{item}: {count}")
+
+print("\nTop 10 Bigrams:")
+for item, count in bi_count.most_common(10):
+    print(f"{item}: {count}")
+
+print("\nTop 10 Trigrams:")
+for item, count in tri_count.most_common(10):
+    print(f"{item}: {count}")
