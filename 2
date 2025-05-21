@@ -1,0 +1,42 @@
+!pip install svgling
+import nltk
+from nltk import word_tokenize, pos_tag, ne_chunk
+from nltk.chunk import tree2conlltags
+
+
+resources = ['punkt', 'punkt_tab', 'maxent_ne_chunker', 
+             'averaged_perceptron_tagger_eng', 'words', 'maxent_ne_chunker_tab']
+for res in resources:
+    nltk.download(res)
+
+text = """Apple Inc. is planning to open a new headquarters in Austin, Texas.
+CEO Tim Cook announced the plan along with Harry Potter"""
+text2 = "Harry Potter, goes to Hogwarts"
+
+
+tokens = word_tokenize(text)
+pos_tags = pos_tag(tokens)
+ne_tree = ne_chunk(pos_tags)
+bio_tags = tree2conlltags(ne_tree)
+
+entities = []
+entity_words = []
+entity_type = None
+
+for word, pos, tag in bio_tags:
+    if tag.startswith('B-'): 
+        if entity_words:  
+            entities.append((' '.join(entity_words), entity_type))
+        entity_words = [word]
+        entity_type = tag[2:]
+    elif tag.startswith('I-') and entity_words: 
+        entity_words.append(word)
+    elif entity_words:  
+        entities.append((' '.join(entity_words), entity_type))
+        entity_words = []
+        entity_type = None
+
+if entity_words:
+    entities.append((' '.join(entity_words), entity_type))
+
+print(entities)
