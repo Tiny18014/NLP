@@ -1,0 +1,60 @@
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense
+
+
+text = ("Machine learning is a field of artificial intelligence that uses statistical techniques "
+       "to give computer systems the ability to learn from data, without being explicitly programmed. "
+       "Deep Learning is a subset of machine learning concerned with algorithms inspired by the structure "
+       "and function of the brain called artificial neural networks.")
+
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts([text.lower()])
+total_words = len(tokenizer.word_index) + 1
+
+
+sequences = []
+tokens = tokenizer.texts_to_sequences([text.lower()])[0]
+for i in range(1, len(tokens)):
+    sequences.append(tokens[:i+1])
+
+
+max_len = max(len(seq) for seq in sequences)
+padded_seqs = pad_sequences(sequences, maxlen=max_len, padding='pre')
+
+
+X = padded_seqs[:, :-1]  
+y = tf.keras.utils.to_categorical(padded_seqs[:, -1], num_classes=total_words)  
+
+model = Sequential([
+    Embedding(total_words, 50, input_length=max_len-1),
+    LSTM(100),
+    Dense(total_words, activation='softmax')
+])
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+
+model.fit(X, y, epochs=100, verbose=0)
+
+def generate(seed, n_words=10):
+    text = seed.lower()
+    for _ in range(n_words):
+       
+        seq = tokenizer.texts_to_sequences([text])[0]
+        padded = pad_sequences([seq], maxlen=max_len-1, padding='pre')
+        
+        pred = model.predict(padded, verbose=0)
+        next_idx = np.argmax(pred)
+        next_word = tokenizer.index_word.get(next_idx, "")
+        
+       
+        if not next_word:
+            break
+        text += " " + next_word
+    return text
+
+print(generate("machine learning", 15))
